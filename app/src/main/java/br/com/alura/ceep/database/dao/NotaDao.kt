@@ -1,9 +1,8 @@
 package br.com.alura.ceep.database.dao
 
 import androidx.room.Dao
-import androidx.room.Delete
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy.REPLACE
+import androidx.room.OnConflictStrategy.Companion.REPLACE
 import androidx.room.Query
 import br.com.alura.ceep.model.Nota
 import kotlinx.coroutines.flow.Flow
@@ -18,7 +17,7 @@ interface NotaDao {
     fun buscaTodas() : Flow<List<Nota>>
 
     @Query("SELECT * FROM Nota WHERE id = :id")
-    fun buscaPorId(id: Long): Flow<Nota>
+    fun buscaPorId(id: Long): Flow<Nota?>
 
     @Query("DELETE FROM Nota WHERE id = :id")
     suspend fun remove(id: Long)
