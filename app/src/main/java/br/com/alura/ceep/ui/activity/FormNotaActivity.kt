@@ -1,7 +1,6 @@
 package br.com.alura.ceep.ui.activity
 
 import android.os.Bundle
-import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View.GONE
@@ -9,24 +8,30 @@ import android.view.View.VISIBLE
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import br.com.alura.ceep.R
-import br.com.alura.ceep.database.AppDatabase
 import br.com.alura.ceep.databinding.ActivityFormNotaBinding
 import br.com.alura.ceep.extensions.tentaCarregarImagem
 import br.com.alura.ceep.model.Nota
+import br.com.alura.ceep.repository.NotaRepository
 import br.com.alura.ceep.ui.dialog.FormImagemDialog
-import kotlinx.coroutines.flow.*
+import dagger.hilt.android.AndroidEntryPoint
+import jakarta.inject.Inject
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.launch
+import java.util.UUID
 
+@AndroidEntryPoint
 class FormNotaActivity : AppCompatActivity() {
 
     private val binding by lazy {
         ActivityFormNotaBinding.inflate(layoutInflater)
     }
     private var imagem: MutableStateFlow<String?> = MutableStateFlow(null)
-    private val dao by lazy {
-        AppDatabase.instancia(this).notaDao()
-    }
-    private var notaId: Long = 0L
+
+    @Inject
+    lateinit var repository: NotaRepository
+
+    private var notaId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,18 +64,20 @@ class FormNotaActivity : AppCompatActivity() {
     }
 
     private suspend fun tentaBuscarNota() {
-        dao.buscaPorId(notaId)
-            .filterNotNull()
-            .collect { notaEncontrada ->
-                notaId = notaEncontrada.id
-                imagem.value = notaEncontrada.imagem
-                binding.activityFormNotaTitulo.setText(notaEncontrada.titulo)
-                binding.activityFormNotaDescricao.setText(notaEncontrada.descricao)
-            }
+        notaId?.let {
+            repository.getById(notaId!!)
+                .filterNotNull()
+                .collect { notaEncontrada ->
+                    notaId = notaEncontrada.id
+                    imagem.value = notaEncontrada.imagem
+                    binding.activityFormNotaTitulo.setText(notaEncontrada.titulo)
+                    binding.activityFormNotaDescricao.setText(notaEncontrada.descricao)
+                }
+        }
     }
 
     private fun tentaCarregarIdDaNota() {
-        notaId = intent.getLongExtra(NOTA_ID, 0L)
+        notaId = intent.getStringExtra(NOTA_ID)
     }
 
     private fun configuraImagem() {
@@ -102,16 +109,18 @@ class FormNotaActivity : AppCompatActivity() {
     }
 
     private fun remove() {
-        lifecycleScope.launch {
-            dao.remove(notaId)
-            finish()
-        }
+            lifecycleScope.launch {
+                notaId?.let {
+                    repository.delete(notaId!!)
+                }
+                finish()
+            }
     }
 
     private fun salva() {
         val nota = criaNota()
         lifecycleScope.launch {
-            dao.salva(nota)
+            repository.save(nota)
             finish()
         }
     }
@@ -120,7 +129,7 @@ class FormNotaActivity : AppCompatActivity() {
         val titulo = binding.activityFormNotaTitulo.text.toString()
         val descricao = binding.activityFormNotaDescricao.text.toString()
         return Nota(
-            id = notaId,
+            id = notaId ?: UUID.randomUUID().toString(),
             titulo = titulo,
             descricao = descricao,
             imagem = imagem.value

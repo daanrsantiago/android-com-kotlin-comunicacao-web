@@ -8,12 +8,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import br.com.alura.ceep.database.AppDatabase
 import br.com.alura.ceep.databinding.ActivityListaNotasBinding
 import br.com.alura.ceep.extensions.vaiPara
+import br.com.alura.ceep.repository.NotaRepository
 import br.com.alura.ceep.ui.recyclerview.adapter.ListaNotasAdapter
+import dagger.hilt.android.AndroidEntryPoint
+import jakarta.inject.Inject
 import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class ListaNotasActivity : AppCompatActivity() {
 
     private val binding by lazy {
@@ -22,9 +25,9 @@ class ListaNotasActivity : AppCompatActivity() {
     private val adapter by lazy {
         ListaNotasAdapter(this)
     }
-    private val dao by lazy {
-        AppDatabase.instancia(this).notaDao()
-    }
+
+    @Inject
+    lateinit var notaRepository: NotaRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -32,6 +35,9 @@ class ListaNotasActivity : AppCompatActivity() {
         configuraFab()
         configuraRecyclerView()
         lifecycleScope.launch {
+            launch {
+                notaRepository.synchronizeDatabase()
+            }
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 buscaNotas()
             }
@@ -56,7 +62,7 @@ class ListaNotasActivity : AppCompatActivity() {
     }
 
     private suspend fun buscaNotas() {
-        dao.buscaTodas()
+        notaRepository.getAll()
             .collect { notasEncontradas ->
                 binding.activityListaNotasMensagemSemNotas.visibility =
                     if (notasEncontradas.isEmpty()) {
